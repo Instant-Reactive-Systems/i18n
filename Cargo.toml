@@ -1,0 +1,8 @@
+[package]
+name = "i18n"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+fluent-templates = { version = "0.10" }
+
