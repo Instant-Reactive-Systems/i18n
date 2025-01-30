@@ -1,11 +1,12 @@
 //! I18n utilties and tools.
+pub use unic_langid::{langid, langids, LanguageIdentifier};
 
-/// Localizes the type given a [`fluent_templates::LanguageIdentifier`].
+/// Localizes the type given a [`unic_langid::LanguageIdentifier`].
 pub trait LocalizedDisplay {
-    fn localize(&self, lang: &fluent_templates::LanguageIdentifier) -> String;
+    fn localize(&self, lang: &unic_langid::LanguageIdentifier) -> String;
 }
 
-// #[cfg(tests)]
+#[cfg(test)]
 mod tests {
     use super::*;
     use fluent_templates::Loader;
@@ -26,7 +27,7 @@ mod tests {
         }
 
         impl LocalizedDisplay for Foo {
-            fn localize(&self, lang: &fluent_templates::LanguageIdentifier) -> String {
+            fn localize(&self, lang: &unic_langid::LanguageIdentifier) -> String {
                 match self {
                     Self::A => LOCALE.lookup(lang, "foo-a"),
                     Self::B => LOCALE.lookup(lang, "foo-b"),
@@ -38,10 +39,10 @@ mod tests {
         let a = Foo::A;
         let b = Foo::B;
 
-        let res = a.localize(&fluent_templates::langid!("en-US"));
+        let res = a.localize(&unic_langid::langid!("en-US"));
         assert_eq!(res, "English A");
 
-        let res = a.localize(&fluent_templates::langid!("hr-hr"));
+        let res = a.localize(&unic_langid::langid!("hr-hr"));
         assert_eq!(res, "Croatian A");
     }
 }

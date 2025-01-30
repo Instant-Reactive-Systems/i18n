@@ -4,5 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-fluent-templates = { version = "0.12" }
+unic-langid = { version = "0.9" }
 
+[dev-dependencies]
+fluent-templates = { version = "0.12" }
