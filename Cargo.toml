@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-unic-langid = { version = "0.9" }
+unic-langid = { version = "0.9", features = ["macros"] }
 
 [dev-dependencies]
 fluent-templates = { version = "0.12" }
