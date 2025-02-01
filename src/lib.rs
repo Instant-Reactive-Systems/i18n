@@ -3,7 +3,7 @@ pub use unic_langid::{langid, langids, LanguageIdentifier};
 
 /// Localizes the type given a [`unic_langid::LanguageIdentifier`].
 pub trait LocalizedDisplay {
-    fn localize(&self, lang: &unic_langid::LanguageIdentifier) -> String;
+    fn localize(&self, lang: &LanguageIdentifier) -> String;
 }
 
 #[cfg(test)]
@@ -27,7 +27,7 @@ mod tests {
         }
 
         impl LocalizedDisplay for Foo {
-            fn localize(&self, lang: &unic_langid::LanguageIdentifier) -> String {
+            fn localize(&self, lang: &LanguageIdentifier) -> String {
                 match self {
                     Self::A => LOCALE.lookup(lang, "foo-a"),
                     Self::B => LOCALE.lookup(lang, "foo-b"),
