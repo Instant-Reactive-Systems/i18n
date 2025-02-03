@@ -158,7 +158,18 @@ name = "i18n"
 version = "0.1.0"
 dependencies = [
  "fluent-templates",
+ "i18n-macros",
  "unic-langid",
+]
+
+[[package]]
+name = "i18n-macros"
+version = "0.1.0"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn",
+ "walkdir",
 ]
 
 [[package]]

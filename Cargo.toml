@@ -5,6 +5,12 @@ edition = "2021"
 
 [dependencies]
 unic-langid = { version = "0.9", features = ["macros"] }
+i18n-macros = { path = "./i18n-macros" }
 
 [dev-dependencies]
 fluent-templates = { version = "0.12" }
+
+[workspace]
+members = [
+  "i18n-macros",
+]
