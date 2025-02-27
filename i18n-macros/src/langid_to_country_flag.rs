@@ -1,7 +1,6 @@
 /// Converts a Unicode langid into its respective country flag.
-pub fn langid_to_flag(langid: &str) -> Option<&'static str> {
-    let country_code = crate::utils::langid_to_country_code(langid)?;
-    match country_code.to_uppercase().as_str() {
+pub fn langid_to_flag(region: &str) -> Option<&'static str> {
+    match region {
         "AD" => Some("🇦🇩"),
         "AE" => Some("🇦🇪"),
         "AF" => Some("🇦🇫"),

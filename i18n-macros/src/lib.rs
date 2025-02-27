@@ -1,7 +1,6 @@
 mod langid_to_country_flag;
 mod langid_to_dir;
 mod langid_to_name;
-mod utils;
 
 use langid_to_country_flag::*;
 use langid_to_dir::*;
@@ -30,15 +29,32 @@ pub fn langs(input: TokenStream) -> TokenStream {
             }
 
             // Extract language ID from directory name
-            let langid = path.file_name()?.to_str()?.to_string();
-            let iso639_code = utils::langid_to_iso639(&langid);
-            let name = langid_to_name(&iso639_code);
-            let flag = langid_to_flag(&langid);
+            let dir_name = path.file_name()?.to_str()?.to_string();
+            let splitter = if dir_name.contains('_') {
+                "_".to_string()
+            } else if dir_name.contains('-') {
+                "-".to_string()
+            } else {
+                dir_name.clone()
+            };
+            let mut parts = dir_name.split(&splitter);
+            let langid = parts
+                .next()
+                .map(str::to_lowercase)
+                .expect("should always be present");
+            let region = parts.next().map(str::to_uppercase);
+            let full_langid = if let Some(region) = &region {
+                format!("{}-{}", langid, region)
+            } else {
+                langid.clone()
+            };
+            let name = langid_to_name(&langid);
+            let flag = region.map(|region| langid_to_flag(&region));
             let dir = langid_to_dir(&langid);
 
             Some(quote! {
                 i18n::Lang {
-                    id: #langid,
+                    id: #full_langid,
                     name: #name,
                     flag: #flag,
                     dir: #dir,
