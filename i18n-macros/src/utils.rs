@@ -12,7 +12,7 @@ pub fn langid_to_iso639(langid: &str) -> String {
         .split(splitter)
         .next()
         .expect("at least one should exist here")
-        .to_string()
+        .to_uppercase()
 }
 
 /// Extracts the country code from a Unicode langid.
@@ -25,5 +25,5 @@ pub fn langid_to_country_code(langid: &str) -> Option<String> {
         return None;
     };
 
-    langid.split(splitter).nth(1).map(ToString::to_string)
+    langid.split(splitter).nth(1).map(str::to_uppercase)
 }
