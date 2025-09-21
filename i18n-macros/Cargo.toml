@@ -12,3 +12,5 @@ proc-macro2 = "1.0"
 quote = "1.0"
 syn = { version = "2.0", features = ["visit", "full"] }
 walkdir = "2.0"
+fluent-syntax = "0.12"
+unic-langid = "0.9"
