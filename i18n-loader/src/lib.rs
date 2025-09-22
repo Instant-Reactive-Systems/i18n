@@ -1,10 +1,10 @@
 pub use fluent_bundle::{
-    FluentArgs, FluentError, FluentResource, FluentValue,
     concurrent::FluentBundle,
     resolver::errors::{ReferenceKind, ResolverError},
+    FluentArgs, FluentError, FluentResource, FluentValue,
 };
 pub use lazy_static;
-pub use unic_langid::{LanguageIdentifier, langid, langids};
+pub use unic_langid::{langid, langids, LanguageIdentifier};
 
 use std::{
     borrow::Cow,
@@ -43,6 +43,7 @@ impl Locales {
     ///
     /// It first attempts to find the `Locale` for the requested language. If the entire `Locale` is missing,
     /// it will automatically retry the query using the configured fallback language.
+    #[track_caller]
     pub fn query(
         &self,
         lang: &LanguageIdentifier,
@@ -97,6 +98,7 @@ impl Locale {
     /// arguments, and attempts to format it into a `Message` struct.
     /// If the message ID is not found, or if any errors occur during formatting,
     /// an `Err` containing a vector of `FluentError`s is returned.
+    #[track_caller]
     pub fn query(&self, query: &Query) -> Result<Message, Vec<FluentError>> {
         let mut errors = Vec::default();
         let msg = match self.bundle.get_message(&query.id) {
