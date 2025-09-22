@@ -137,8 +137,6 @@ pub fn load_impl(input: TokenStream) -> TokenStream {
                 continue;
             }
 
-            println!("cargo:rerun-if-changed={}", file_path.display());
-
             let file_name = file.file_name().to_string_lossy().to_string();
             let content = match std::fs::read_to_string(&file_path) {
                 Ok(content) => content,

@@ -43,8 +43,6 @@ pub fn langs_impl(input: TokenStream) -> TokenStream {
                 return None;
             }
 
-            println!("cargo:rerun-if-changed={}", path.display());
-
             // Extract language ID from directory name
             let dir_name = path.file_name()?.to_str()?.to_string();
             let splitter = if dir_name.contains('_') {
