@@ -110,3 +110,19 @@ fn test_if_tr_macro_works() {
         }
     )
 }
+
+#[test]
+fn test_tr_macro_with_args_no_locales_on_error() {
+    i18n::load!("./tests/i18n", fallback_lang = "en-US");
+
+    let lang = i18n::langid!("en-US");
+    let msg = i18n::tr!(lang, "welcome-back", username = "Alice");
+    assert_eq!(
+        msg,
+        i18n::Message {
+            id: "welcome-back".to_string(),
+            value: "Welcome back, \u{2068}Alice\u{2069}!".to_string(),
+            attrs: Default::default(),
+        }
+    );
+}

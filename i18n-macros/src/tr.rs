@@ -50,10 +50,10 @@ impl Parse for TrMacroInput {
                 } else if key_ident == "on_error" {
                     on_error = Some(input.parse()?);
                 } else {
-                    return Err(syn::Error::new(
-                        key_ident.span(),
-                        "Unexpected parameter. Expected `locales = VAR_NAME`, `on_error = EXPR`, or message arguments.",
-                    ));
+                    // This is a main message arg: key = value
+                    // The key_ident has already been parsed, so we just need the value
+                    let value: Expr = input.parse()?;
+                    main_args.push((key_ident, value));
                 }
             } else if input.peek(Ident) && input.peek2(syn::token::Paren) {
                 // Check for attr(...)
@@ -73,11 +73,9 @@ impl Parse for TrMacroInput {
                     .or_default()
                     .push((arg_key, arg_value));
             } else {
-                // This is a main message arg: key = value
-                let key: Ident = input.parse()?;
-                input.parse::<Token![=]>()?;
-                let value: Expr = input.parse()?;
-                main_args.push((key, value));
+                return Err(input.error(
+                    "Unexpected token. Expected `locales = VAR_NAME`, `on_error = EXPR`, `attr(...)`, or `key = value`."
+                ));
             }
         }
 
