@@ -103,7 +103,7 @@ pub fn tr_impl(input: TokenStream) -> TokenStream {
         Err(err) => return err.to_compile_error().into(),
     };
 
-    let mut query_builder = quote! { i18n_loader::Query::new(#id) };
+    let mut query_builder = quote! { i18n::Query::new(#id) };
 
     for (key, value) in main_args.into_iter() {
         query_builder = quote! { #query_builder.with_arg(stringify!(#key), #value) };
@@ -131,7 +131,7 @@ pub fn tr_impl(input: TokenStream) -> TokenStream {
             match #query_call {
                 Ok(msg) => msg,
                 Err(errs) => {
-                    i18n_loader::Message {
+                    i18n::Message {
                         id: #id.to_string(),
                         value: #id.to_string(),
                         attrs: std::collections::HashMap::new(),
