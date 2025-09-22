@@ -118,7 +118,26 @@ impl Locale {
             if attr_args.is_some() {
                 query_attrs.remove(attr.id());
             }
-            let value = self.bundle.format_pattern(pattern, attr_args, &mut errors);
+            let mut local_errors = Vec::default();
+            let value = self
+                .bundle
+                .format_pattern(pattern, attr_args, &mut local_errors);
+
+            // we ignore variable errors if no variables were provided by us
+            if attr_args.is_none() {
+                for err in local_errors.into_iter() {
+                    if let FluentError::ResolverError(ResolverError::Reference(
+                        ReferenceKind::Variable { .. },
+                    )) = err
+                    {
+                        continue;
+                    }
+
+                    errors.push(err);
+                }
+            } else {
+                errors.extend(local_errors.into_iter());
+            }
             attrs.insert(attr.id().to_string(), value.to_string());
         }
 
