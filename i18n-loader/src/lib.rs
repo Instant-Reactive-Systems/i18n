@@ -18,14 +18,17 @@ pub struct Locales {
     locales: HashMap<LanguageIdentifier, Locale>,
     /// The language to use as a fallback if a message is not found in the requested language.
     fallback_lang: LanguageIdentifier,
+    /// An optional error handler to be called with any localization errors.
+    on_error: Option<fn(&[FluentError])>,
 }
 
 impl Locales {
     /// Creates a new, empty `Locales` collection with a specified fallback language.
-    pub fn new(fallback_lang: LanguageIdentifier) -> Self {
+    pub fn new(fallback_lang: LanguageIdentifier, on_error: Option<fn(&[FluentError])>) -> Self {
         Self {
             locales: Default::default(),
             fallback_lang,
+            on_error,
         }
     }
 
@@ -45,15 +48,22 @@ impl Locales {
         lang: &LanguageIdentifier,
         query: &Query,
     ) -> Result<Message, Vec<FluentError>> {
-        let Some(locale) = self.locales.get(lang) else {
-            let fallback_locale = self
-                .locales
-                .get(&self.fallback_lang)
-                .expect("a fallback language should *always* exist and be present as a locale");
-            return fallback_locale.query(query);
+        let query_result = match self.locales.get(lang) {
+            Some(locale) => locale.query(query),
+            None => {
+                let fallback_locale = self
+                    .locales
+                    .get(&self.fallback_lang)
+                    .expect("a fallback language should *always* exist and be present as a locale");
+                fallback_locale.query(query)
+            }
         };
 
-        locale.query(query)
+        // inspect the errors if on_error exists
+        if let (Some(on_error), Err(errs)) = (&self.on_error, &query_result) {
+            on_error(&errs);
+        }
+        return query_result;
     }
 }
 
@@ -163,7 +173,7 @@ impl Locale {
 }
 
 /// Represents a localized message with its ID, value, and attributes.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Default)]
 pub struct Message {
     /// The unique identifier for the message (e.g., "login-button").
     pub id: String,

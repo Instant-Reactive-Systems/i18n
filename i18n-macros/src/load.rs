@@ -5,57 +5,35 @@ use quote::quote;
 use std::collections::{HashMap, HashSet};
 use std::path::Path;
 use syn::parse::{Parse, ParseStream, Result};
-use syn::{Ident, LitBool, LitStr, Token};
+use syn::{Expr, Ident, LitBool, LitStr, Token};
 use unic_langid::LanguageIdentifier;
 
 struct LoadMacroInput {
     path: LitStr,
-    fallback_lang: LitStr,
+    fallback_lang: Option<LitStr>,
     check_keys: bool,
     name: Ident,
+    on_error: Option<Expr>,
 }
 
 impl Parse for LoadMacroInput {
     fn parse(input: ParseStream) -> Result<Self> {
         if input.is_empty() {
-            return Err(syn::Error::new(input.span(), "Usage: load!(\"i18n\", fallback_lang = \"en-US\")\nThe path should be relative to your crate root (where Cargo.toml is)."));
+            return Err(syn::Error::new(
+                input.span(),
+                "Usage: load!(\"i18n\")\nOptional parameters: `fallback_lang`, `check_keys`, `name`, `on_error`.\nThe path should be relative to your crate root (where Cargo.toml is).",
+            ));
         }
 
         let path: LitStr = input.parse().map_err(|_| {
             syn::Error::new(input.span(), "Expected a path to the locales directory as the first argument. The path should be relative to your crate root (where Cargo.toml is).")
         })?;
 
-        input
-            .parse::<Token![,]>()
-            .map_err(|_| syn::Error::new(input.span(), "Expected a comma after the path."))?;
-
-        let ident: Ident = input.parse().map_err(|_| {
-            syn::Error::new(
-                input.span(),
-                "Expected `fallback_lang = \"...\"` after the comma.",
-            )
-        })?;
-
-        if ident != "fallback_lang" {
-            return Err(syn::Error::new(
-                ident.span(),
-                "Expected the identifier `fallback_lang`.",
-            ));
-        }
-
-        input
-            .parse::<Token![=]>()
-            .map_err(|_| syn::Error::new(input.span(), "Expected `=` after `fallback_lang`."))?;
-
-        let fallback_lang: LitStr = input.parse().map_err(|_| {
-            syn::Error::new(
-                input.span(),
-                "Expected a string literal for the fallback language.",
-            )
-        })?;
-
+        let mut fallback_lang = None;
         let mut check_keys = true;
         let mut name = Ident::new("LOCALES", Span::call_site());
+        let mut on_error = None;
+
         while input.peek(Token![,]) {
             input.parse::<Token![,]>()?;
             if input.is_empty() {
@@ -66,12 +44,14 @@ impl Parse for LoadMacroInput {
             input.parse::<Token![=]>()?;
 
             match key.to_string().as_str() {
+                "fallback_lang" => fallback_lang = Some(input.parse()?),
                 "check_keys" => check_keys = input.parse::<LitBool>()?.value(),
                 "name" => name = input.parse::<Ident>()?,
+                "on_error" => on_error = Some(input.parse::<Expr>()?),
                 _ => {
                     return Err(syn::Error::new(
                         key.span(),
-                        "Unexpected parameter, expected 'check_keys' or 'name'",
+                        "Unexpected parameter, expected 'fallback_lang', 'check_keys', 'name', or 'on_error'",
                     ))
                 }
             }
@@ -82,6 +62,7 @@ impl Parse for LoadMacroInput {
             fallback_lang,
             check_keys,
             name,
+            on_error,
         })
     }
 }
@@ -92,20 +73,28 @@ pub fn load_impl(input: TokenStream) -> TokenStream {
         fallback_lang,
         check_keys,
         name,
+        on_error,
     } = match syn::parse(input) {
         Ok(input) => input,
         Err(err) => return err.to_compile_error().into(),
     };
 
-    // Verify the fallback language identifier at compile time.
-    if let Err(err) = fallback_lang.value().parse::<LanguageIdentifier>() {
-        return syn::Error::new(
-            fallback_lang.span(),
-            format!("Invalid fallback language identifier: {}", err),
-        )
-        .to_compile_error()
-        .into();
-    }
+    let fallback_lang = match fallback_lang {
+        Some(lang) => {
+            // Verify the fallback language identifier at compile time.
+            if let Err(err) = lang.value().parse::<LanguageIdentifier>() {
+                return syn::Error::new(
+                    lang.span(),
+                    format!("Invalid fallback language identifier: {}", err),
+                )
+                .to_compile_error()
+                .into();
+            }
+            let lang_str = lang.value();
+            quote! { #lang_str }
+        }
+        None => quote! { "en-US" },
+    };
 
     let path = path_lit.value();
     let path = Path::new(&path);
@@ -147,6 +136,8 @@ pub fn load_impl(input: TokenStream) -> TokenStream {
             if file_path.extension().and_then(|ext| ext.to_str()) != Some("ftl") {
                 continue;
             }
+
+            println!("cargo:rerun-if-changed={}", file_path.display());
 
             let file_name = file.file_name().to_string_lossy().to_string();
             let content = match std::fs::read_to_string(&file_path) {
@@ -229,13 +220,12 @@ pub fn load_impl(input: TokenStream) -> TokenStream {
         }
     });
 
-    let fallback_lang_str = fallback_lang.value();
+    let on_error = on_error.map_or_else(|| quote! { None }, |expr| quote! { Some(#expr) });
 
     quote! {
         i18n::lazy_static::lazy_static! {
             pub static ref #name: i18n::Locales = {
-                let fallback_lang = #fallback_lang_str.parse().expect("Invalid fallback language identifier");
-                let mut locales = i18n::Locales::new(fallback_lang);
+                let mut locales = i18n::Locales::new(#fallback_lang.parse().expect("compile time verified"), #on_error);
                 #(#add_locale)*
                 locales
             };

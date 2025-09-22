@@ -17,7 +17,7 @@ use proc_macro::TokenStream;
 /// ```rust
 /// use i18n_macros::langs;
 ///
-/// let available_langs = langs!("./i18n");
+/// let available_langs = langs!("../tests/i18n");
 /// // available_langs will be an array like:
 /// // [
 /// //   i18n::Lang { id: "en-US", name: "English", flag: Some("🇺🇸"), dir: "ltr" },
@@ -38,38 +38,68 @@ pub fn langs(input: TokenStream) -> TokenStream {
 ///
 /// The generated static instance provides methods to query for localized messages.
 ///
-/// # Parameters
+/// # Syntax
+///
+/// `load!(path: LitStr [, fallback_lang: LitStr] [, check_keys: bool] [, name: Ident] [, on_error: Expr])`
+///
+/// # Arguments
 ///
 /// - `path`: A string literal representing the path to the locales directory.
-///   This path should be relative to your crate root (where Cargo.toml is).
-/// - `fallback_lang`: A string literal representing the language identifier
+///   This path should be relative to your crate root (where `Cargo.toml` is).
+///
+/// - `fallback_lang` (optional): A string literal representing the language identifier
 ///   (e.g., "en-US") to use as a fallback if a message is not found in the
-///   requested language. This parameter is required.
+///   requested language. Defaults to `"en-US"`.
+///
 /// - `check_keys` (optional): A boolean literal (`true` or `false`). If `true`
 ///   (default), the macro will perform a compile-time check to ensure all
 ///   locale files have a consistent set of message keys. If `false`, this
 ///   check is skipped.
+///
 /// - `name` (optional): An identifier to use as the name for the generated
 ///   `lazy_static` variable. Defaults to `LOCALES`.
+///
+/// - `on_error` (optional): An expression that evaluates to a function or closure
+///   to be called when an error occurs during localization (e.g., missing message).
+///   The function should have the signature `fn(errors: &[i18n_loader::FluentError])`.
 ///
 /// # Usage
 ///
 /// ```rust
 /// use i18n_macros::load;
-/// use i18n_loader::{Query, LanguageIdentifier};
+/// use i18n_loader::{Query, LanguageIdentifier, FluentError};
 /// use unic_langid::langid;
+/// use i18n::lazy_static;
 ///
-/// // Basic usage with default name (LOCALES) and key checking
-/// load!("./i18n", fallback_lang = "en-US");
+/// // Basic usage with default values.
+/// load!("../tests/i18n", name = LOCALES_DEFAULT);
 ///
-/// // With a custom name and disabled key checking
-/// load!("./i18n", fallback_lang = "en-US", check_keys = false, name = MY_I18N_DATA);
+/// // With a custom fallback language, disabled key checking, and a custom name.
+/// load!(
+///     "../tests/i18n",
+///     fallback_lang = "hr-hr",
+///     check_keys = false,
+///     name = MY_I18N_DATA
+/// );
 ///
-/// // Example of accessing the generated data (assuming default name LOCALES)
-/// // let lang = langid!("en-US");
-/// // let query = Query::new("welcome-message");
-/// // let message = LOCALES.query(&lang, &query).unwrap();
-/// // println!("{}", message.value);
+/// // With an error handler.
+/// fn on_error(errors: &[FluentError]) {
+///     // Log the error, send it to a monitoring service, etc.
+///     println!("Localization errors: {:?}", errors);
+/// }
+///
+/// load!("../tests/i18n", on_error = on_error, name = LOCALES_WITH_ERROR_HANDLER);
+///
+/// // Example of accessing the generated data (assuming default name `LOCALES_DEFAULT`).
+/// let lang_en = langid!("en-US");
+/// let query = Query::new("foo-a");
+/// let message = LOCALES_DEFAULT.query(&lang_en, &query).unwrap();
+/// assert_eq!(message.value, "English A".to_string());
+///
+/// let lang_hr = langid!("hr-hr");
+/// let query = Query::new("foo-a");
+/// let message = LOCALES_DEFAULT.query(&lang_hr, &query).unwrap();
+/// assert_eq!(message.value, "Croatian A".to_string());
 /// ```
 #[proc_macro]
 pub fn load(input: TokenStream) -> TokenStream {
@@ -80,11 +110,11 @@ pub fn load(input: TokenStream) -> TokenStream {
 ///
 /// This macro provides a convenient way to query for a message using a language
 /// identifier, message ID, and optional arguments. It handles error cases by
-/// either calling a custom error handler or providing a default fallback message.
+/// providing a default fallback message.
 ///
 /// # Syntax
 ///
-/// `tr!(lang: Expr, id: LitStr [, locales = VAR_NAME] [, key = value]* [, .attribute_name(key = value)* ] [, on_error = EXPR])`
+/// `tr!(lang: Expr, id: LitStr [, locales = VAR_NAME] [, key = value]* [, .attribute_name(key = value)* ])`
 ///
 /// - `lang`: A Rust expression that evaluates to a `&LanguageIdentifier` (e.g., `langid!("en-US")` or a variable). This is the language to query for.
 /// - `id`: A string literal representing the ID of the Fluent message.
@@ -93,10 +123,6 @@ pub fn load(input: TokenStream) -> TokenStream {
 ///   `key` must be an identifier, and `value` can be any Rust expression.
 /// - `attr(attr_id, key = value)`: Optional arguments for a specific attribute
 ///   of the message. `attr_id` is a string literal representing the attribute ID (e.g., "aria-label" or "attr-arg").
-///   `key` must be an identifier, and `value` can be any Rust expression.
-/// - `on_error` (optional): A Rust expression (e.g., a closure or function call) that will be executed if the localization query fails.
-///   It must accept one argument of type `Vec<i18n_loader::FluentError>` and return an `i18n_loader::Message`.
-///   If not provided, a default `i18n_loader::Message` is returned (with the ID as its value) and errors are printed to `eprintln!`.
 ///
 /// # Returns
 ///
@@ -105,38 +131,32 @@ pub fn load(input: TokenStream) -> TokenStream {
 /// # Examples
 ///
 /// ```rust
-/// use i18n_macros::tr;
+/// use i18n_macros::{load, tr};
 /// use i18n_loader::{Message, FluentError};
 /// use unic_langid::langid;
+/// use i18n::lazy_static;
 ///
-/// // Assuming `LOCALES` is loaded via `load!` macro
-/// // load!("./i18n", fallback_lang = "en-US");
+/// // Load the localization data.
+/// load!("../tests/i18n", fallback_lang = "en-US", name = TR_LOCALES);
 ///
 /// let lang_en = langid!("en-US");
 ///
-/// // Basic usage
-/// let msg1 = tr!(lang_en, "welcome-message");
+/// // Basic usage:
+/// let msg1 = tr!(lang_en, "foo-a", locales = TR_LOCALES);
+/// assert_eq!(msg1.value, "English A".to_string());
 ///
-/// // With main message arguments
-/// let msg2 = tr!(lang_en, "greeting", user = "Alice", count = 5);
+/// // With main message arguments:
+/// let msg2 = tr!(lang_en, "welcome-back", username = "Alice", locales = TR_LOCALES);
+/// assert_eq!(msg2.value, "Welcome back, \u{2068}Alice\u{2069}!".to_string());
 ///
-/// // With attribute arguments
-/// let msg3 = tr!(lang_en, "login-button", attr("aria-label", user = "Bob"));
-/// let msg4 = tr!(lang_en, "login-button", attr("attr-arg", user = "Bob"));
+/// // With attribute arguments:
+/// let msg3 = tr!(lang_en, "login-btn", attr("attr-arg", text = "some text"), locales = TR_LOCALES);
+/// assert_eq!(msg3.attrs.get("attr-arg"), Some(&"This is an attribute argument with arbitrary text: \u{2068}some text\u{2069}".to_string()));
 ///
-/// // With custom locales variable
-/// // load!("./i18n", fallback_lang = "en-US", name = MY_APP_LOCALES);
-/// // let msg5 = tr!(lang_en, "app-title", locales = MY_APP_LOCALES);
-///
-/// // With custom error handling
-/// fn handle_tr_error(errs: Vec<FluentError>) -> Message {
-///     eprintln!("Custom error handler: {{:?}}", errs);
-///     Message { id: "error".to_string(), value: "Error occurred!".to_string(), attrs: Default::default() }
-/// }
-/// let msg6 = tr!(lang_en, "non-existent-id", on_error = handle_tr_error);
-///
-/// // With both main message and attribute arguments
-/// let msg7 = tr!(lang_en, "item-status", item = "book", status = "available", attr("tooltip", id = 123));
+/// // With a custom locales variable:
+/// load!("../tests/i18n", fallback_lang = "en-US", name = MY_APP_LOCALES);
+/// let msg4 = tr!(lang_en, "foo-b", locales = MY_APP_LOCALES);
+/// assert_eq!(msg4.value, "English B".to_string());
 /// ```
 #[proc_macro]
 pub fn tr(input: TokenStream) -> TokenStream {

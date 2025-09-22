@@ -25,10 +25,14 @@ pub fn langs_impl(input: TokenStream) -> TokenStream {
             return syn::Error::new(err.span(), msg).to_compile_error().into();
         }
     };
-    let path_str = input_path.value();
+    let path = input_path.value();
+
+    let manifest_dir = std::env::var("CARGO_MANIFEST_DIR").unwrap();
+    let mut absolute_path = std::path::PathBuf::from(manifest_dir);
+    absolute_path.push(&path);
 
     // Read directories in the specified path
-    let langs = std::fs::read_dir(&path_str)
+    let langs = std::fs::read_dir(&absolute_path)
         .expect("Failed to read directory")
         .filter_map(|entry| {
             let entry = entry.ok()?;
@@ -38,6 +42,8 @@ pub fn langs_impl(input: TokenStream) -> TokenStream {
             if !path.is_dir() {
                 return None;
             }
+
+            println!("cargo:rerun-if-changed={}", path.display());
 
             // Extract language ID from directory name
             let dir_name = path.file_name()?.to_str()?.to_string();
