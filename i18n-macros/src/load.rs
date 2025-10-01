@@ -118,6 +118,7 @@ pub fn load_impl(input: TokenStream) -> TokenStream {
     let mut errors = Vec::new();
     let mut locale_contents: HashMap<String, Vec<String>> = HashMap::new();
     let mut file_keys: HashMap<String, HashMap<String, HashSet<String>>> = HashMap::new();
+    let mut all_absolute_file_paths: Vec<String> = Vec::default();
 
     for entry in entries {
         let Ok(entry) = entry else { continue };
@@ -135,6 +136,11 @@ pub fn load_impl(input: TokenStream) -> TokenStream {
             let file_path = file.path();
             if file_path.extension().and_then(|ext| ext.to_str()) != Some("ftl") {
                 continue;
+            }
+
+            // track the file using `include_str!`
+            if let Some(path) = file_path.to_str() {
+                all_absolute_file_paths.push(path.to_string());
             }
 
             let file_name = file.file_name().to_string_lossy().to_string();
@@ -220,9 +226,19 @@ pub fn load_impl(input: TokenStream) -> TokenStream {
 
     let on_error = on_error.map_or_else(|| quote! { None }, |expr| quote! { Some(#expr) });
 
+    let trackers = all_absolute_file_paths.iter().enumerate().map(|(i, path)| {
+        let const_name = quote::format_ident!("_I18N_TRACKER_{}", i);
+        quote! {
+            // This const is never used, but it makes the compiler track changes to the file.
+            #[allow(dead_code)]
+            const #const_name: &str = include_str!(#path);
+        }
+    });
+
     quote! {
         i18n::lazy_static::lazy_static! {
             pub static ref #name: i18n::Locales = {
+                #(#trackers)*
                 let mut locales = i18n::Locales::new(#fallback_lang.parse().expect("compile time verified"), #on_error);
                 #(#add_locale)*
                 locales
