@@ -52,7 +52,7 @@ impl Parse for TrMacroInput {
                         input.error("Unexpected identifier. Expected `locales = VAR_NAME`.")
                     );
                 }
-            } else if input.peek(LitStr) && input.peek2(syn::token::Paren) {
+            } else if input.peek(LitStr) && input.peek2(Token![=]) {
                 // This is a main message arg: key = value
                 let key: LitStr = input.parse()?;
                 input.parse::<Token![=]>()?;
