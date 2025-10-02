@@ -14,8 +14,3 @@ syn = { version = "2.0", features = ["visit", "full"] }
 walkdir = "2.0"
 fluent-syntax = "0.12"
 unic-langid = { version = "0.9", features = ["macros"] }
-
-[dev-dependencies]
-i18n-loader = { path = "../i18n-loader" }
-i18n = { path = ".." }
-lazy_static = "1.5"

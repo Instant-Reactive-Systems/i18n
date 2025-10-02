@@ -4,15 +4,14 @@ pub use fluent_bundle::{
     FluentArgs, FluentError, FluentResource, FluentValue,
 };
 pub use lazy_static;
+use std::{borrow::Cow, collections::HashMap, sync::Arc};
 pub use unic_langid::{langid, langids, LanguageIdentifier};
 
-use std::{
-    borrow::Cow,
-    collections::{HashMap, HashSet},
-    sync::Arc,
-};
-
-/// A collection of `Locale` instances, keyed by language.
+/// A thread-safe container for all loaded localization data.
+///
+/// It manages multiple `Locale` instances, keyed by language identifier,
+/// and provides a unified interface for querying translations. It also handles
+/// fallback logic to a default language if a translation is missing.
 pub struct Locales {
     /// The map from a language identifier to its `Locale`.
     locales: HashMap<LanguageIdentifier, Locale>,
@@ -23,7 +22,11 @@ pub struct Locales {
 }
 
 impl Locales {
-    /// Creates a new, empty `Locales` collection with a specified fallback language.
+    /// Creates a new, empty `Locales` collection.
+    ///
+    /// # Arguments
+    /// * `fallback_lang`: The language identifier to use if a translation is not found in the current language.
+    /// * `on_error`: An optional callback function that will be invoked with any errors that occur during message formatting.
     pub fn new(fallback_lang: LanguageIdentifier, on_error: Option<fn(&[FluentError])>) -> Self {
         Self {
             locales: Default::default(),
@@ -32,7 +35,14 @@ impl Locales {
         }
     }
 
-    /// Adds a new locale to the collection from a set of resources.
+    /// Adds a new language's localization data to the collection.
+    ///
+    /// # Arguments
+    /// * `lang_str`: A string slice representing the language identifier (e.g., "en-US", "de").
+    /// * `resources`: A vector of `FluentResource`s containing the translation data for this language.
+    ///
+    /// # Panics
+    /// Panics if `lang_str` is not a valid language identifier.
     pub fn add_locale(&mut self, lang_str: &str, resources: Vec<FluentResource>) {
         let lang_id: LanguageIdentifier = lang_str.parse().expect("Language ID should be valid");
         let locale = Locale::new(lang_id.clone(), resources);
@@ -66,6 +76,13 @@ impl Locales {
         }
         return query_result;
     }
+
+    /// If an `on_error` handler is configured, this method invokes it with the provided slice of `FluentError`s.
+    pub fn call_on_error(&self, errors: &[FluentError]) {
+        if let Some(on_error) = self.on_error {
+            on_error(errors);
+        }
+    }
 }
 
 /// Manages Fluent localization resources for a specific locale.
@@ -77,11 +94,15 @@ impl Locales {
 pub struct Locale {
     /// The underlying `FluentBundle` that manages the collection of resources
     /// and handles the formatting of messages.
-    bundle: FluentBundle<Arc<FluentResource>>,
+    bundle: Arc<FluentBundle<Arc<FluentResource>>>,
 }
 
 impl Locale {
-    /// Creates a new `Locale` for a given language and resource.
+    /// Creates a new `Locale` for a given language and its resources.
+    ///
+    /// # Arguments
+    /// * `lang`: The `LanguageIdentifier` for this locale.
+    /// * `resources`: A vector of `FluentResource`s containing the translation data.
     pub fn new(lang: LanguageIdentifier, resources: Vec<FluentResource>) -> Self {
         let mut bundle = FluentBundle::new_concurrent(vec![lang.clone()]);
         for resource in resources.into_iter() {
@@ -89,6 +110,8 @@ impl Locale {
                 .add_resource(Arc::new(resource))
                 .expect("resource should never be overriding another; consider this a bug if it happens and open an issue at https://github.com/Instant-Reactive-Systems/i18n/issues");
         }
+        let bundle = Arc::new(bundle);
+
         Self { bundle }
     }
 
@@ -119,47 +142,62 @@ impl Locale {
                 .bundle
                 .format_pattern(pattern, Some(&query.args), &mut errors)
                 .to_string(),
-            None => Default::default(),
+            None => format!("<{}>", query.id),
         };
 
-        let mut query_attrs = query.attr_args.keys().cloned().collect::<HashSet<_>>();
         let mut attrs = HashMap::default();
         for attr in msg.attributes() {
-            let pattern = attr.value();
-            let attr_args = query.attr_args.get(attr.id());
-            if attr_args.is_some() {
-                query_attrs.remove(attr.id());
-            }
             let mut local_errors = Vec::default();
-            let value = self
-                .bundle
-                .format_pattern(pattern, attr_args, &mut local_errors);
+            let pattern = attr.value();
+            let attr_cache = match query.attr_args.get(attr.id()) {
+                Some(args) => {
+                    let value = self
+                        .bundle
+                        .format_pattern(pattern, Some(args), &mut local_errors);
 
-            // we ignore variable errors if no variables were provided by us
-            if attr_args.is_none() {
-                for err in local_errors.into_iter() {
-                    if let FluentError::ResolverError(ResolverError::Reference(
-                        ReferenceKind::Variable { .. },
-                    )) = err
-                    {
-                        continue;
+                    AttrCache {
+                        entry_id: query.id.to_string(),
+                        attr_id: attr.id().to_string(),
+                        value: Some(value.to_string()),
+                        bundle: self.bundle.clone(),
                     }
-
-                    errors.push(err);
                 }
-            } else {
-                errors.extend(local_errors.into_iter());
-            }
-            attrs.insert(attr.id().to_string(), value.to_string());
-        }
+                None => {
+                    let mut even_more_local_errors = Vec::default();
+                    let value =
+                        self.bundle
+                            .format_pattern(pattern, None, &mut even_more_local_errors);
 
-        for attr in query_attrs.into_iter() {
-            errors.push(FluentError::ResolverError(ResolverError::Reference(
-                ReferenceKind::Message {
-                    id: query.id.to_string(),
-                    attribute: Some(attr.to_string()),
-                },
-            )));
+                    let value = if !even_more_local_errors.is_empty() {
+                        let only_missing_attr_args = even_more_local_errors.iter().all(|err| {
+                            matches!(
+                                err,
+                                FluentError::ResolverError(ResolverError::Reference(
+                                    ReferenceKind::Variable { .. }
+                                ))
+                            )
+                        });
+
+                        // only consider errors other than a missing placeable as an actual error
+                        if !only_missing_attr_args {
+                            local_errors.extend(even_more_local_errors.into_iter());
+                        }
+
+                        None
+                    } else {
+                        Some(value.to_string())
+                    };
+
+                    AttrCache {
+                        entry_id: query.id.to_string(),
+                        attr_id: attr.id().to_string(),
+                        value,
+                        bundle: self.bundle.clone(),
+                    }
+                }
+            };
+
+            attrs.insert(attr.id().to_string(), attr_cache);
         }
 
         if !errors.is_empty() {
@@ -175,14 +213,14 @@ impl Locale {
 }
 
 /// Represents a localized message with its ID, value, and attributes.
-#[derive(Debug, Clone, PartialEq, Default)]
+#[derive(Debug, PartialEq, Default)]
 pub struct Message {
     /// The unique identifier for the message (e.g., "login-button").
     pub id: String,
     /// The translated main text of the message.
     pub value: String,
     /// A map of associated attributes for the message, such as `aria-label`.
-    pub attrs: HashMap<String, String>,
+    pub attrs: HashMap<String, AttrCache>,
 }
 
 /// Represents a request to format a localized message, including its ID and arguments.
@@ -249,9 +287,108 @@ impl<'a> Query<'a> {
         self
     }
 
-    /// Enables or disables fallback behavior for this query.
+    /// Enables or disables fallback to the default language for this specific query.
+    ///
+    /// If set to `true`, and the requested message is not found in the primary language,
+    /// the query will be re-attempted using the `Locales` fallback language.
     pub fn with_fallback(mut self, enable_fallback: bool) -> Self {
         self.with_fallback = enable_fallback;
         self
+    }
+}
+
+/// Provides a cache for the value of a specific attribute from a localization entry.
+///
+/// This struct is designed for lazy evaluation. It stores the identifiers for a
+/// message's attribute (`entry_id`, `attr_id`) and a static reference to the `Locales`
+/// instance. The actual localized string is only fetched from the origin `Locales`
+/// and stored in `value` upon first access, reducing overhead for attributes that
+/// are not immediately needed.
+pub struct AttrCache {
+    /// The ID of the main localization entry.
+    pub entry_id: String,
+    /// The ID of the attribute entry.
+    pub attr_id: String,
+    /// The cached value of the localization.
+    pub value: Option<String>,
+    /// The underlying `FluentBundle` that manages the collection of resources
+    /// and handles the formatting of messages.
+    pub bundle: Arc<FluentBundle<Arc<FluentResource>>>,
+}
+
+impl AttrCache {
+    /// Queries the cached attribute, formatting it with the given arguments.
+    ///
+    /// If the attribute value is already cached, it will be returned immediately.
+    /// Otherwise, it will be formatted using the provided `args`. If `args` are
+    /// not provided, any arguments required by the attribute will be missing,
+    /// potentially resulting in a formatting error.
+    ///
+    /// # Errors
+    /// Returns a `Vec<FluentError>` if any errors occur during formatting, such as
+    /// missing message IDs, attributes, or arguments.
+    pub fn query(&mut self, args: Option<&FluentArgs>) -> Result<String, Vec<FluentError>> {
+        // return the cached localization
+        if let Some(value) = self.value.clone() {
+            return Ok(value);
+        }
+
+        let mut errors = Vec::default();
+        let msg = match self.bundle.get_message(&self.entry_id) {
+            Some(msg) => msg,
+            None => {
+                errors.push(FluentError::ResolverError(ResolverError::Reference(
+                    ReferenceKind::Message {
+                        id: self.entry_id.to_string(),
+                        attribute: None,
+                    },
+                )));
+                return Err(errors);
+            }
+        };
+
+        let Some(this_attr) = msg.attributes().find(|attr| attr.id() == self.attr_id) else {
+            errors.push(FluentError::ResolverError(ResolverError::Reference(
+                ReferenceKind::Message {
+                    id: self.entry_id.to_string(),
+                    attribute: Some(self.attr_id.to_string()),
+                },
+            )));
+            return Err(errors);
+        };
+
+        let pattern = this_attr.value();
+        let value = self.bundle.format_pattern(pattern, args, &mut errors);
+
+        if !errors.is_empty() {
+            return Err(errors);
+        }
+
+        Ok(value.to_string())
+    }
+}
+
+/// Implements equality for `AttrCache`.
+///
+/// Two `AttrCache` instances are considered equal if they point to the same
+/// message entry and attribute. The cached `value` is not considered in the
+/// comparison.
+impl PartialEq for AttrCache {
+    fn eq(&self, other: &Self) -> bool {
+        self.entry_id == other.entry_id && self.attr_id == other.attr_id
+    }
+}
+
+/// Custom debug implementation for `AttrCache`.
+///
+/// This implementation provides a clean debug output, showing the entry ID,
+/// attribute ID, and the cached value if present.
+impl std::fmt::Debug for AttrCache {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("AttrCache")
+            .field("entry_id", &self.entry_id)
+            .field("attr_id", &self.attr_id)
+            .field("value", &self.value)
+            .finish()
     }
 }

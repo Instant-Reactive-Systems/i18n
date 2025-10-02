@@ -9,25 +9,31 @@ struct TrMacroInput {
     lang: Expr,
     id: LitStr,
     locales_var: Ident,
-    main_args: Vec<(Ident, Expr)>,
-    attr_args: HashMap<String, Vec<(Ident, Expr)>>,
+    main_args: Vec<(String, Expr)>,
+    attr_args: HashMap<String, Vec<(String, Expr)>>,
 }
 
 impl Parse for TrMacroInput {
     fn parse(input: ParseStream) -> Result<Self> {
         let lang: Expr = input.parse().map_err(|err| {
-            syn::Error::new(err.span(), "Expected a language identifier (e.g., `langid!(\"en-US\")` or a variable).")
+            syn::Error::new(
+                err.span(),
+                "Expected a language identifier (e.g., `langid!(\"en-US\")` or a variable).",
+            )
         })?;
         input.parse::<Token![,]>().map_err(|err| {
-            syn::Error::new(err.span(), "Expected a comma after the language identifier.")
+            syn::Error::new(
+                err.span(),
+                "Expected a comma after the language identifier.",
+            )
         })?;
-        let id: LitStr = input
-            .parse()
-            .map_err(|err| syn::Error::new(err.span(), "Expected a message ID (a string literal)."))?;
+        let id: LitStr = input.parse().map_err(|err| {
+            syn::Error::new(err.span(), "Expected a message ID (a string literal).")
+        })?;
 
         let mut locales_var = Ident::new("LOCALES", Span::call_site());
         let mut main_args = Vec::new();
-        let mut attr_args: HashMap<String, Vec<(Ident, Expr)>> = HashMap::new();
+        let mut attr_args: HashMap<String, Vec<(String, Expr)>> = HashMap::new();
 
         while input.peek(Token![,]) {
             input.parse::<Token![,]>()?;
@@ -42,28 +48,38 @@ impl Parse for TrMacroInput {
                 if key_ident == "locales" {
                     locales_var = input.parse()?;
                 } else {
-                    // This is a main message arg: key = value
-                    // The key_ident has already been parsed, so we just need the value
-                    let value: Expr = input.parse()?;
-                    main_args.push((key_ident, value));
+                    return Err(
+                        input.error("Unexpected identifier. Expected `locales = VAR_NAME`.")
+                    );
                 }
+            } else if input.peek(LitStr) && input.peek2(syn::token::Paren) {
+                // This is a main message arg: key = value
+                let key: LitStr = input.parse()?;
+                input.parse::<Token![=]>()?;
+
+                let value: Expr = input.parse()?;
+                main_args.push((key.value(), value));
             } else if input.peek(Ident) && input.peek2(syn::token::Paren) {
                 // Check for attr(...)
                 // This is an attribute arg: attr(<attr-id>, <variable-name> = <value>)
-                let _attr_ident: Ident = input.parse()?; // Parse 'attr'
+                let attr_ident: Ident = input.parse()?;
+                if attr_ident != "attr" {
+                    return Err(input.error("Unexpected identifier. Expected `attr(...)`"));
+                }
+
                 let content;
-                syn::parenthesized!(content in input); // Parse content within parentheses
+                syn::parenthesized!(content in input);
 
                 let attr_id: LitStr = content.parse()?;
                 content.parse::<Token![,]>()?;
-                let arg_key: Ident = content.parse()?;
+                let arg_key: LitStr = content.parse()?;
                 content.parse::<Token![=]>()?;
                 let arg_value: Expr = content.parse()?;
 
                 attr_args
                     .entry(attr_id.value())
                     .or_default()
-                    .push((arg_key, arg_value));
+                    .push((arg_key.value(), arg_value));
             } else {
                 return Err(input.error(
                     "Unexpected token. Expected `locales = VAR_NAME`, `attr(...)`, or `key = value`."
@@ -100,8 +116,7 @@ pub fn tr_impl(input: TokenStream) -> TokenStream {
     }
     for (attr_name, args) in attr_args.into_iter() {
         for (key, value) in args {
-            query_builder =
-                quote! { #query_builder.with_attr_arg(#attr_name, stringify!(#key), #value) };
+            query_builder = quote! { #query_builder.with_attr_arg(#attr_name, #key, #value) };
         }
     }
 
@@ -116,7 +131,7 @@ pub fn tr_impl(input: TokenStream) -> TokenStream {
                 i18n::Message {
                     id: #id.to_string(),
                     value: #id.to_string(),
-                    attrs: std::collections::HashMap::new(),
+                    attrs: Default::default(),
                 }
             }
         }
@@ -124,4 +139,3 @@ pub fn tr_impl(input: TokenStream) -> TokenStream {
 
     TokenStream::from(final_expansion)
 }
-

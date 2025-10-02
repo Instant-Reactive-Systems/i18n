@@ -70,9 +70,6 @@ name = "i18n-macros"
 version = "0.1.0"
 dependencies = [
  "fluent-syntax",
- "i18n",
- "i18n-loader",
- "lazy_static",
  "proc-macro2",
  "quote",
  "syn",
