@@ -112,7 +112,7 @@ pub fn tr_impl(input: TokenStream) -> TokenStream {
     let mut query_builder = quote! { i18n::Query::new(#id) };
 
     for (key, value) in main_args.into_iter() {
-        query_builder = quote! { #query_builder.with_arg(stringify!(#key), #value) };
+        query_builder = quote! { #query_builder.with_arg(#key, #value) };
     }
     for (attr_name, args) in attr_args.into_iter() {
         for (key, value) in args {
