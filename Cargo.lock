@@ -448,11 +448,19 @@ name = "i18n"
 version = "0.1.0"
 dependencies = [
  "i18n",
+ "i18n-lang",
  "i18n-loader",
  "i18n-macros",
  "mockito",
  "serde_json",
  "tokio",
+]
+
+[[package]]
+name = "i18n-lang"
+version = "0.1.0"
+dependencies = [
+ "unic-langid",
 ]
 
 [[package]]
@@ -463,6 +471,7 @@ dependencies = [
  "fluent-syntax",
  "hyper 0.14.32",
  "hyper-tls",
+ "i18n-lang",
  "itertools",
  "lazy_static",
  "serde_json",
@@ -476,6 +485,7 @@ name = "i18n-macros"
 version = "0.1.0"
 dependencies = [
  "fluent-syntax",
+ "i18n-lang",
  "proc-macro2",
  "quote",
  "syn",

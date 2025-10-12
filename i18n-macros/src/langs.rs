@@ -1,10 +1,3 @@
-mod langid_to_country_flag;
-mod langid_to_dir;
-mod langid_to_name;
-
-use self::langid_to_country_flag::*;
-use self::langid_to_dir::*;
-use self::langid_to_name::*;
 use proc_macro::TokenStream;
 use quote::quote;
 use syn::LitStr;
@@ -63,13 +56,13 @@ pub fn langs_impl(input: TokenStream) -> TokenStream {
             } else {
                 langid.clone()
             };
-            let name = langid_to_name(&langid);
-            let flag = region.map(|region| langid_to_flag(&region));
-            let dir = langid_to_dir(&langid);
+            let name = i18n_lang::langid_to_name(&langid);
+            let flag = region.map(|region| i18n_lang::langid_to_flag(&region));
+            let dir = i18n_lang::langid_to_dir(&langid);
 
             Some(quote! {
                 i18n::Lang {
-                    id: #full_langid,
+                    id: #full_langid.to_string(),
                     name: #name,
                     flag: #flag,
                     dir: #dir,

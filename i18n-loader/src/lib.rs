@@ -52,10 +52,7 @@ impl Locales {
 
         let uri = url.parse().unwrap();
 
-        let res = client
-            .get(uri)
-            .await
-            .map_err(NetError::ServerError)?;
+        let res = client.get(uri).await.map_err(NetError::ServerError)?;
         let body = hyper::body::to_bytes(res.into_body())
             .await
             .map_err(NetError::ServerError)?;
@@ -139,6 +136,15 @@ impl Locales {
         if let Some(on_error) = self.on_error {
             on_error(errors);
         }
+    }
+
+    /// Gets the languages used in the locales collection.
+    pub fn langs(&self) -> Vec<i18n_lang::Lang> {
+        self.locales
+            .keys()
+            .cloned()
+            .map(i18n_lang::Lang::from)
+            .collect()
     }
 }
 

@@ -1,0 +1,7 @@
+[package]
+name = "i18n-lang"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+unic-langid = { version = "0.9" }

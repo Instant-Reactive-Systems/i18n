@@ -33,7 +33,23 @@ fn test_if_type_works() {
 #[test]
 fn test_if_langs_macro_works() {
     let langs = i18n::langs!("./tests/i18n");
-    println!("{langs:?}");
+    assert_eq!(
+        langs,
+        [
+            i18n::Lang {
+                id: "en-US".to_string(),
+                name: "English",
+                flag: "🇺🇸",
+                dir: "ltr"
+            },
+            i18n::Lang {
+                id: "hr-HR".to_string(),
+                name: "Hrvatski",
+                flag: "🇭🇷",
+                dir: "ltr"
+            },
+        ]
+    );
 }
 
 #[test]

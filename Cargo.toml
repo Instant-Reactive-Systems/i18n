@@ -6,9 +6,10 @@ edition = "2021"
 [dependencies]
 i18n-macros = { path = "./i18n-macros" }
 i18n-loader = { path = "./i18n-loader" }
+i18n-lang = { path = "./i18n-lang" }
 
 [workspace]
-members = [
+members = [ "i18n-lang",
   "i18n-loader",
   "i18n-macros",
 ]

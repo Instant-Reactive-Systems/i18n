@@ -14,3 +14,4 @@ syn = { version = "2.0", features = ["visit", "full"] }
 walkdir = "2.0"
 fluent-syntax = "0.12"
 unic-langid = { version = "0.9", features = ["macros"] }
+i18n-lang = { path = "../i18n-lang" }
