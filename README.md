@@ -1,7 +1,7 @@
 # i18n - A Modern Internationalization Library for Rust
 
 <!-- [![Crates.io](https://img.shields.io/crates/v/i18n.svg)](https://crates.io/crates/i18n) -->
-<!-- [![Docs.rs](https://docs.rs/i18n/badge.svg)](https://docs.rs/i18n) -->
+[![Docs](https://img.shields.io/badge/i18n-passing-docs?color=blue&link=https%3A%2F%2Finstant-reactive-systems.github.io%2Fi18n%2Fi18n%2F)](https://instant-reactive-systems.github.io/i18n/i18n/)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](./LICENSE-APACHE)
 
 A modern, ergonomic, and powerful internationalization (i18n) library for Rust, built on top of [Mozilla's Fluent](https://projectfluent.org/) project. This library provides a complete solution for translating applications, from compile-time checked messages to a flexible runtime loader.
