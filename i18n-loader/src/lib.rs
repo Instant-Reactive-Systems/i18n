@@ -35,6 +35,63 @@ impl Locales {
         }
     }
 
+    /// Creates a new `Locales` collection from a network resource.
+    ///
+    /// # Arguments
+    /// * `url`: The URL from which to fetch the translation.
+    /// * `fallback_lang`: The language identifier to use if a translation is not found in the current language.
+    /// * `on_error`: An optional callback function that will be invoked with any errors that occur during message formatting.
+    #[cfg(feature = "net")]
+    pub async fn from_url(
+        url: &str,
+        fallback_lang: LanguageIdentifier,
+        on_error: Option<fn(&[FluentError])>,
+    ) -> Result<Self, NetError> {
+        let https = hyper_tls::HttpsConnector::new();
+        let client = hyper::Client::builder().build::<_, hyper::Body>(https);
+
+        let uri = url.parse().unwrap();
+
+        let res = client
+            .get(uri)
+            .await
+            .map_err(NetError::ServerError)?;
+        let body = hyper::body::to_bytes(res.into_body())
+            .await
+            .map_err(NetError::ServerError)?;
+        let definitions: HashMap<String, String> =
+            serde_json::from_slice(&body).map_err(NetError::InvalidFormat)?;
+        let mut parser_errors: Vec<ParserError> = Vec::default();
+        let mut locales: HashMap<LanguageIdentifier, Locale> = HashMap::default();
+        for (langid, definition) in definitions.into_iter() {
+            let langid = match langid.parse::<LanguageIdentifier>() {
+                Ok(langid) => langid,
+                Err(_) => {
+                    parser_errors.push(ParserError::InvalidLangid { langid });
+                    continue;
+                }
+            };
+            let resource = match FluentResource::try_new(definition) {
+                Ok(resource) => resource,
+                Err((_, errors)) => {
+                    parser_errors.push(ParserError::ParserError { langid, errors });
+                    continue;
+                }
+            };
+            locales.insert(langid.clone(), Locale::new(langid, vec![resource]));
+        }
+
+        if !parser_errors.is_empty() {
+            return Err(NetError::ParserError(parser_errors));
+        }
+
+        Ok(Self {
+            locales,
+            fallback_lang,
+            on_error,
+        })
+    }
+
     /// Adds a new language's localization data to the collection.
     ///
     /// # Arguments
@@ -72,9 +129,9 @@ impl Locales {
 
         // inspect the errors if on_error exists
         if let (Some(on_error), Err(errs)) = (&self.on_error, &query_result) {
-            on_error(&errs);
+            on_error(errs);
         }
-        return query_result;
+        query_result
     }
 
     /// If an `on_error` handler is configured, this method invokes it with the provided slice of `FluentError`s.
@@ -391,4 +448,36 @@ impl std::fmt::Debug for AttrCache {
             .field("value", &self.value)
             .finish()
     }
+}
+
+#[cfg(feature = "net")]
+#[derive(Debug, thiserror::Error)]
+pub enum ParserError {
+    #[error("could not parse langid: {langid}")]
+    InvalidLangid { langid: String },
+    #[error("errors occurred during parsing of {}", {
+        use itertools::Itertools;
+        format!(
+            "{langid}:\n{}",
+            errors.iter().map(|err| format!("\t- {err:?}")).join("\n")
+        )
+    })]
+    ParserError {
+        langid: LanguageIdentifier,
+        errors: Vec<fluent_syntax::parser::ParserError>,
+    },
+}
+
+#[cfg(feature = "net")]
+#[derive(Debug, thiserror::Error)]
+pub enum NetError {
+    #[error(transparent)]
+    ServerError(#[from] hyper::Error),
+    #[error("errors occurred during parsing:\n{}", {
+        use itertools::Itertools;
+        _0.iter().join("\n")
+    })]
+    ParserError(Vec<ParserError>),
+    #[error("invalid format received from server, expected {{'lang-id': 'fluent-definitions', ..}}; errors: {0}")]
+    InvalidFormat(#[from] serde_json::Error),
 }

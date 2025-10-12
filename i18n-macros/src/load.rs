@@ -101,7 +101,7 @@ pub fn load_impl(input: TokenStream) -> TokenStream {
 
     let manifest_dir = std::env::var("CARGO_MANIFEST_DIR").unwrap();
     let mut absolute_path = std::path::PathBuf::from(manifest_dir);
-    absolute_path.push(&path);
+    absolute_path.push(path);
 
     let entries = match std::fs::read_dir(&absolute_path) {
         Ok(entries) => entries,
@@ -158,7 +158,7 @@ pub fn load_impl(input: TokenStream) -> TokenStream {
                     let msgs = errs.iter().map(|e| format!("{e:?}")).collect::<Vec<_>>();
                     errors.push(format!(
                         "Failed to parse {locale}/{file_name}: {}",
-                        msgs.join("; ")
+                        msgs.join("\n")
                     ));
                     continue;
                 }
@@ -215,7 +215,7 @@ pub fn load_impl(input: TokenStream) -> TokenStream {
     let locales: Vec<String> = locale_contents.keys().cloned().collect();
     let add_locale = locales.into_iter().map(|locale| {
         let contents = locale_contents.get(&locale).unwrap();
-        let create_fluent_resources = contents.into_iter().map(|content| quote! {
+        let create_fluent_resources = contents.iter().map(|content| quote! {
                 i18n::FluentResource::try_new(#content.to_string()).expect("parsed at compile time")
             }).collect::<Vec<_>>();
 

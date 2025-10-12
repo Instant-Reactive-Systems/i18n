@@ -12,3 +12,11 @@ members = [
   "i18n-loader",
   "i18n-macros",
 ]
+
+[features]
+net = ["i18n-loader/net"]
+
+[dev-dependencies]
+tokio = { version = "1", features = ["full"] }
+mockito = "1"
+serde_json = "1"
