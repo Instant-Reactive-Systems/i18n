@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"enum":["FluentError","FluentValue","ReferenceKind","ResolverError"],"macro":["langid","langids"],"struct":["AttrCache","FluentArgs","FluentResource","LanguageIdentifier","Locale","Locales","Message","Query"],"type":["FluentBundle"]};

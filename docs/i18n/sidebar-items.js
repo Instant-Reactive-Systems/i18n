@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"enum":["FluentError","FluentValue","ReferenceKind","ResolverError"],"macro":["attr","langid","langids","langs","load","tr"],"mod":["lazy_static"],"struct":["AttrCache","FluentArgs","FluentResource","Lang","LanguageIdentifier","Locale","Locales","Message","Query"],"trait":["LocalizedDisplay"],"type":["FluentBundle"]};

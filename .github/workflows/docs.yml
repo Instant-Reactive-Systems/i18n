@@ -32,8 +32,7 @@ jobs:
 
       - name: Move docs to root
         run: |
-          mv target/doc/i18n/* target/doc/
-          rmdir target/doc/i18n
+          echo "<meta http-equiv=\"refresh\" content=\"0; url=i18n\">" > target/doc/index.html
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
