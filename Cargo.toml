@@ -17,6 +17,7 @@ members = [
 net = ["i18n-loader/net"]
 
 [dev-dependencies]
+i18n = { path = ".", version = "0.1.0", features = ["net"] }
 tokio = { version = "1", features = ["full"] }
 mockito = "1"
 serde_json = "1"

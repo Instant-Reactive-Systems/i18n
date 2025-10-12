@@ -16,7 +16,6 @@ itertools = { version = "0.14", optional = true }
 serde_json = { version = "1.0", optional = true }
 
 [features]
-default = ["net"]
 net = ["dep:hyper", "dep:hyper-tls", "dep:tokio", "dep:thiserror", "dep:fluent-syntax", "dep:itertools", "dep:serde_json"]
 
 [dev-dependencies]

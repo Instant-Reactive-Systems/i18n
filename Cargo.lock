@@ -447,6 +447,7 @@ dependencies = [
 name = "i18n"
 version = "0.1.0"
 dependencies = [
+ "i18n",
  "i18n-loader",
  "i18n-macros",
  "mockito",

@@ -116,7 +116,7 @@ pub fn load(input: TokenStream) -> TokenStream {
 /// - `id`: A string literal representing the ID of the Fluent message.
 /// - `locales` (optional): An identifier for the `i18n::Locales` static variable to use. Defaults to `LOCALES`.
 /// - `key = value`: Optional key-value pairs for arguments to the main message.
-///   `key` must be an identifier, and `value` can be any Rust expression.
+///   `key` must be an string literal, and `value` can be any Rust expression.
 /// - `attr(attr_id, key = value)`: Optional arguments for a specific attribute
 ///   of the message. `attr_id` is a string literal representing the attribute ID (e.g., "aria-label" or "attr-arg").
 ///
@@ -137,11 +137,11 @@ pub fn load(input: TokenStream) -> TokenStream {
 /// assert_eq!(msg1.value, "English A".to_string());
 ///
 /// // With main message arguments:
-/// let msg2 = i18n::tr!(lang_en, "welcome-back", username = "Alice", locales = TR_LOCALES);
+/// let msg2 = i18n::tr!(lang_en, "welcome-back", "username" = "Alice", locales = TR_LOCALES);
 /// assert_eq!(msg2.value, "Welcome back, \u{2068}Alice\u{2069}!".to_string());
 ///
 /// // With attribute arguments:
-/// let msg3 = i18n::tr!(lang_en, "login-btn", attr("attr-arg", text = "some text"), locales = TR_LOCALES);
+/// let msg3 = i18n::tr!(lang_en, "login-btn", attr("attr-arg", "text" = "some text"), locales = TR_LOCALES);
 /// assert_eq!(msg3.attrs.get("attr-arg"), Some(&"This is an attribute argument with arbitrary text: \u{2068}some text\u{2069}".to_string()));
 ///
 /// // With a custom locales variable:
@@ -187,7 +187,7 @@ pub fn tr(input: TokenStream) -> TokenStream {
 /// assert_eq!(idle_text, "Login");
 ///
 /// // Get an attribute with arguments and a custom locales instance
-/// let arg_text = i18n::attr!(msg, "attr-arg", locales = ATTR_MACRO_LOCALES, text = "some value");
+/// let arg_text = i18n::attr!(msg, "attr-arg", locales = ATTR_MACRO_LOCALES, "text" = "some value");
 /// assert_eq!(arg_text, "This is an attribute argument with arbitrary text: \u{2068}some value\u{2069}");
 /// ```
 #[proc_macro]
