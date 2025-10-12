@@ -34,7 +34,7 @@ jobs:
         uses: actions/upload-pages-artifact@v3
         with:
           # Upload entire directory
-          path: './target/doc'
+          path: './target/doc/i18n'
 
   deploy:
     name: Deploy Docs
