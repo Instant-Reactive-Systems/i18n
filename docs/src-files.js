@@ -1,0 +1,2 @@
+createSrcSidebar('[["i18n",["",[],["lib.rs"]]],["i18n_loader",["",[],["lib.rs"]]],["i18n_macros",["",[["langs",[],["langid_to_country_flag.rs","langid_to_dir.rs","langid_to_name.rs","mod.rs"]]],["attr.rs","lib.rs","load.rs","tr.rs"]]]]');
+//{"start":19,"fragment_lengths":[27,35,153]}

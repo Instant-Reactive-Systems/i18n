@@ -1,0 +1,1 @@
+searchState.loadedDescShard("i18n_macros", 0, "Queries an attribute from an existing <code>i18n::Message</code> …\nExtracts language information from a specified directory.\nLoads Fluent localization files from a specified directory …\nQueries for a localized message, returning an <code>i18n::Message</code>…")

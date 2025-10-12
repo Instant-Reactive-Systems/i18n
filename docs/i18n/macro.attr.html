@@ -1,0 +1,29 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Queries an attribute from an existing `i18n::Message` instance."><title>attr in i18n - Rust</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Italic-81dc35de.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-MediumItalic-ccf7e434.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2" crossorigin href="../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../static.files/rustdoc-aa0817cf.css"><meta name="rustdoc-vars" data-root-path="../" data-static-root-path="../static.files/" data-current-crate="i18n" data-themes="" data-resource-suffix="" data-rustdoc-version="1.90.0 (1159e78c4 2025-09-14)" data-channel="1.90.0" data-search-js="search-fa3e91e5.js" data-settings-js="settings-5514c975.js" ><script src="../static.files/storage-68b7e25d.js"></script><script defer src="sidebar-items.js"></script><script defer src="../static.files/main-eebb9057.js"></script><noscript><link rel="stylesheet" href="../static.files/noscript-32bb7600.css"></noscript><link rel="alternate icon" type="image/png" href="../static.files/favicon-32x32-6580c154.png"><link rel="icon" type="image/svg+xml" href="../static.files/favicon-044be391.svg"></head><body class="rustdoc macro"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="mobile-topbar"><button class="sidebar-menu-toggle" title="show sidebar"></button></nav><nav class="sidebar"><div class="sidebar-crate"><h2><a href="../i18n/index.html">i18n</a><span class="version">0.1.0</span></h2></div><div class="sidebar-elems"><section id="rustdoc-toc"><h2 class="location"><a href="#">attr</a></h2><h3><a href="#">Sections</a></h3><ul class="block top-toc"><li><a href="#syntax" title="Syntax">Syntax</a></li><li><a href="#returns" title="Returns">Returns</a></li><li><a href="#example" title="Example">Example</a></li></ul></section><div id="rustdoc-modnav"><h2 class="in-crate"><a href="index.html">In crate i18n</a></h2></div></div></nav><div class="sidebar-resizer" title="Drag to resize sidebar"></div><main><div class="width-limiter"><rustdoc-search></rustdoc-search><section id="main-content" class="content"><div class="main-heading"><div class="rustdoc-breadcrumbs"><a href="index.html">i18n</a></div><h1>Macro <span class="macro">attr</span><button id="copy-path" title="Copy item path to clipboard">Copy item path</button></h1><rustdoc-toolbar></rustdoc-toolbar><span class="sub-heading"><a class="src" href="../src/i18n_macros/lib.rs.html#194">Source</a> </span></div><pre class="rust item-decl"><code>attr!() { <span class="comment">/* proc-macro */</span> }</code></pre><details class="toggle top-doc" open><summary class="hideme"><span>Expand description</span></summary><div class="docblock"><p>Queries an attribute from an existing <code>i18n::Message</code> instance.</p>
+<p>This macro provides a convenient way to lazily query for an attribute’s
+value from a <code>Message</code> struct that you already have. If the query fails,
+it will invoke the <code>on_error</code> handler on the <code>Locales</code> instance.</p>
+<h2 id="syntax"><a class="doc-anchor" href="#syntax">§</a>Syntax</h2>
+<p><code>attr!(message_expr, attr_id: LitStr [, locales = VAR_NAME] [, key = value]*)</code></p>
+<ul>
+<li><code>message_expr</code>: An expression that evaluates to a <code>&amp;mut i18n::Message</code>.</li>
+<li><code>attr_id</code>: A string literal representing the ID of the attribute to query.</li>
+<li><code>locales</code> (optional): The <code>i18n::Locales</code> instance to use for the error callback. Defaults to <code>LOCALES</code>.</li>
+<li><code>key = value</code>: Optional key-value pairs for arguments to the attribute.</li>
+</ul>
+<h2 id="returns"><a class="doc-anchor" href="#returns">§</a>Returns</h2>
+<p>A <code>String</code>. If the attribute doesn’t exist or an error occurs during formatting,
+it returns the attribute ID as a fallback string.</p>
+<h2 id="example"><a class="doc-anchor" href="#example">§</a>Example</h2>
+<div class="example-wrap ignore"><a href="#" class="tooltip" title="This example is not tested">ⓘ</a><pre class="rust rust-example-rendered"><code><span class="macro">i18n::load!</span>(<span class="string">"../tests/i18n"</span>, name = ATTR_MACRO_LOCALES);
+<span class="kw">let </span>lang = <span class="macro">i18n::langid!</span>(<span class="string">"en-US"</span>);
+
+<span class="kw">let </span><span class="kw-2">mut </span>msg = <span class="macro">i18n::tr!</span>(lang, <span class="string">"login-btn"</span>, locales = ATTR_MACRO_LOCALES);
+
+<span class="comment">// Get an attribute with no arguments (using default LOCALES)
+</span><span class="kw">let </span>idle_text = <span class="macro">i18n::attr!</span>(msg, <span class="string">"idle"</span>);
+<span class="macro">assert_eq!</span>(idle_text, <span class="string">"Login"</span>);
+
+<span class="comment">// Get an attribute with arguments and a custom locales instance
+</span><span class="kw">let </span>arg_text = <span class="macro">i18n::attr!</span>(msg, <span class="string">"attr-arg"</span>, locales = ATTR_MACRO_LOCALES, <span class="string">"text" </span>= <span class="string">"some value"</span>);
+<span class="macro">assert_eq!</span>(arg_text, <span class="string">"This is an attribute argument with arbitrary text: \u{2068}some value\u{2069}"</span>);</code></pre></div>
+</div></details></section></div></main></body></html>
