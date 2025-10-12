@@ -162,11 +162,13 @@ pub fn tr(input: TokenStream) -> TokenStream {
 ///
 /// # Syntax
 ///
-/// `attr!(message_expr, attr_id: LitStr [, locales = VAR_NAME] [, key = value]*)`
+/// `attr!(message_expr, attr_id: LitStr [, locales = VAR_NAME] [, replace] [, key = value]*)`
 ///
 /// - `message_expr`: An expression that evaluates to a `&mut i18n::Message`.
 /// - `attr_id`: A string literal representing the ID of the attribute to query.
 /// - `locales` (optional): The `i18n::Locales` instance to use for the error callback. Defaults to `LOCALES`.
+/// - `replace` (optional): A flag that, if present, forces the attribute to be re-queried from the Fluent bundle,
+///   bypassing any cached value. Defaults to `false` (cached value is used if available).
 /// - `key = value`: Optional key-value pairs for arguments to the attribute.
 ///
 /// # Returns

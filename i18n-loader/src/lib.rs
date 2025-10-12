@@ -390,10 +390,16 @@ impl AttrCache {
     /// # Errors
     /// Returns a `Vec<FluentError>` if any errors occur during formatting, such as
     /// missing message IDs, attributes, or arguments.
-    pub fn query(&mut self, args: Option<&FluentArgs>) -> Result<String, Vec<FluentError>> {
-        // return the cached localization
-        if let Some(value) = self.value.clone() {
-            return Ok(value);
+    pub fn query(
+        &mut self,
+        args: Option<&FluentArgs>,
+        replace: bool,
+    ) -> Result<String, Vec<FluentError>> {
+        // return the cached localization, if no override
+        if !replace {
+            if let Some(value) = self.value.clone() {
+                return Ok(value);
+            }
         }
 
         let mut errors = Vec::default();

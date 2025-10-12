@@ -11,9 +11,10 @@ use syn::{
 type Args = HashMap<String, Expr>;
 
 // A helper function to parse the optional arguments, including `locales`.
-fn parse_optional_args(input: ParseStream) -> Result<(Args, Ident)> {
+fn parse_optional_args(input: ParseStream) -> Result<(Args, Ident, bool)> {
     let mut args = Args::new();
     let mut locales_var = None;
+    let mut replace_var = false;
 
     while !input.is_empty() {
         input.parse::<Token![,]>()?;
@@ -29,7 +30,15 @@ fn parse_optional_args(input: ParseStream) -> Result<(Args, Ident)> {
                 locales_var = Some(input.parse()?);
                 continue;
             } else {
-                return Err(syn::Error::new(key.span(), "Unexpected identifier. Only `locales` is supported as a keyword argument."));
+                return Err(syn::Error::new(key.span(), "Unexpected identifier. Only `locales` and `replace` are supported as keyword arguments."));
+            }
+        } else if input.peek(Ident) { // Check for `replace` keyword
+            let key: Ident = input.parse()?;
+            if key == "replace" {
+                replace_var = true;
+                continue;
+            } else {
+                return Err(syn::Error::new(key.span(), "Unexpected identifier. Only `locales` and `replace` are supported as keyword arguments."));
             }
         }
 
@@ -41,7 +50,7 @@ fn parse_optional_args(input: ParseStream) -> Result<(Args, Ident)> {
     }
     
     let locales = locales_var.unwrap_or_else(|| Ident::new("LOCALES", Span::call_site()));
-    Ok((args, locales))
+    Ok((args, locales, replace_var))
 }
 
 pub struct AttrMacroInput {
@@ -49,6 +58,7 @@ pub struct AttrMacroInput {
     attr: LitStr,
     args: Args,
     locales: Ident,
+    replace: bool,
 }
 
 impl Parse for AttrMacroInput {
@@ -57,14 +67,14 @@ impl Parse for AttrMacroInput {
         input.parse::<Token![,]>()?;
         let attr: LitStr = input.parse()?;
 
-        let (args, locales) = parse_optional_args(input)?;
+        let (args, locales, replace) = parse_optional_args(input)?;
 
-        Ok(AttrMacroInput { from, attr, args, locales })
+        Ok(AttrMacroInput { from, attr, args, locales, replace })
     }
 }
 
 pub fn attr_impl(input: TokenStream) -> TokenStream {
-    let AttrMacroInput { from, attr, args, locales } = match syn::parse(input) {
+    let AttrMacroInput { from, attr, args, locales, replace } = match syn::parse(input) {
         Ok(input) => input,
         Err(err) => return err.to_compile_error().into(),
     };
@@ -84,7 +94,7 @@ pub fn attr_impl(input: TokenStream) -> TokenStream {
             #args_creation
             let args = #args_variable;
             let query_result = match #from.attrs.get_mut(#attr) {
-                Some(attr_cache) => attr_cache.query(args),
+                Some(attr_cache) => attr_cache.query(args, #replace),
                 None => Err(vec![i18n::FluentError::ResolverError(
                     i18n::ResolverError::Reference(i18n::ReferenceKind::Message {
                         id: #from.id.clone(),

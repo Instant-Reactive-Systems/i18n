@@ -215,7 +215,7 @@ fn test_if_lazily_queried_attr_works() {
     // test if passing no arg when there is one fails
     let attr = msg.attrs.get_mut("attr-arg").expect("should exist");
     assert_eq!(
-        attr.query(None),
+        attr.query(None, false),
         Err(vec![i18n::FluentError::ResolverError(
             i18n::ResolverError::Reference(i18n::ReferenceKind::Variable { id: "text".into() })
         )]),
@@ -224,7 +224,7 @@ fn test_if_lazily_queried_attr_works() {
     let attr = msg.attrs.get_mut("attr-arg").expect("should exist");
     let mut args = i18n::FluentArgs::default();
     args.set("text", "this is arbitrary text");
-    let attr = attr.query(Some(&args));
+    let attr = attr.query(Some(&args), false);
     assert_eq!(attr, Ok("This is an attribute argument with arbitrary text: \u{2068}this is arbitrary text\u{2069}".into()));
 }
 
