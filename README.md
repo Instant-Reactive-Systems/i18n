@@ -34,7 +34,7 @@ Add the following to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-i18n = { git = "https://github.com/Instant-Reactive-Systems/i18n", tag = "0.1.0" }
+i18n = { git = "https://github.com/Instant-Reactive-Systems/i18n", tag = "0.1" }
 ```
 
 ### 2. Create Localization Files
@@ -95,7 +95,7 @@ Enable the `net` feature in your `Cargo.toml`:
 
 ```toml
 [dependencies]
-i18n = { git = "https://github.com/Instant-Reactive-Systems/i18n", tag = "0.1.0", features = ["net"] }
+i18n = { git = "https://github.com/Instant-Reactive-Systems/i18n", tag = "0.1", features = ["net"] }
 ```
 
 You can then use `Locales::from_url` to initialize your translations from a remote JSON file that maps language IDs to Fluent resource strings.
